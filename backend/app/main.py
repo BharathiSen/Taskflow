@@ -1,8 +1,8 @@
-from fastapi import FastAPI 
+from fastapi import FastAPI # Import FastAPI class from fastapi module
 
-app = FastAPI()
+app = FastAPI() # Create an instance of FastAPI
 
-@app.get("/health")
-def health():
-    return {"status": "OK"}
+@app.get("/health") # Define a GET endpoint at /health
+def health(): # Define the health function
+    return {"status": "OK"} # Return a JSON response indicating the service is healthy
 
