@@ -1,2 +1,4 @@
 fastapi #web framework for building APIs
 uvicorn #ASGI server for running FastAPI applications
+sqlalchemy #ORM for database interactions
+psycopg2-binary #PostgreSQL database adapter
