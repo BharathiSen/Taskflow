@@ -1,4 +1,5 @@
 from fastapi import FastAPI # Import FastAPI class from fastapi module
+from app.database import engine # Import the database engine
 
 app = FastAPI() # Create an instance of FastAPI
 
