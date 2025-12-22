@@ -8,7 +8,7 @@ DATABASE_URL = "postgresql://postgres:bharathi@localhost:5432/taskflow_db" # Dat
 engine = create_engine(DATABASE_URL) # Create the database engine
 SessionLocal = sessionmaker(bind=engine) # One Database session per request 
 
-Base.metadata(bind=engine) # Create all tables in the database based on the models
+Base.metadata.create_all(bind=engine) # Create all tables in the database based on the models
 
 def get_db(): 
     """Dependency that provides a database session."""

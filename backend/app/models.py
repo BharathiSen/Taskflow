@@ -33,5 +33,5 @@ class Task(Base):  # Task model representing tasks in the database
     id: Mapped[int]=mapped_column(Integer, primary_key=True) # Primary key column
     title: Mapped[str]=mapped_column(String, nullable=False) # Title column
     status: Mapped[str]=mapped_column(String, nullable=False) # Status column
-    created_at: Mapped[datetime]=mapped_column(DateTime, default=datetime) # Created at column with default value
+    created_at: Mapped[datetime]=mapped_column(DateTime, default=datetime.utcnow) # Created at column with default value
     organization_id: Mapped[int]=mapped_column(ForeignKey("organizations.id"), nullable=False) # Foreign key column referencing organizations table
