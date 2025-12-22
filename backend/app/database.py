@@ -9,3 +9,11 @@ engine = create_engine(DATABASE_URL) # Create the database engine
 SessionLocal = sessionmaker(bind=engine) # One Database session per request 
 
 Base.metadata(bind=engine) # Create all tables in the database based on the models
+
+def get_db(): 
+    """Dependency that provides a database session."""
+    db = SessionLocal() # Create a new database session
+    try:
+        yield db # Yield the session to be used in the request
+    finally:
+        db.close() # Ensure the session is closed after the request
