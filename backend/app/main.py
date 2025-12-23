@@ -4,6 +4,7 @@ from app.database import engine , get_db # Import the database engine and get_db
 from app.models import Task, Organization, User # Import the models
 from pydantic import BaseModel # Import BaseModel for request validation
 from app.security import hash_password, verify_password # Import security functions
+from app.auth import create_access_token # Import function to create access tokens
 
 
 # Pydantic models for request validation
@@ -79,3 +80,21 @@ def signup_user(user_data: dict, db:Session=Depends(get_db)): # FastAPI calls ge
         "role": user.role,
         "organization_id": user.organization_id
     } # Return the newly created user details as JSON (excluding password)
+
+@app.post("/login") # User login endpoint
+def login_user(credentials: dict, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == credentials["email"]).first()
+
+    if not user:
+        return {"error": "Invalid credentials"}
+
+    if not verify_password(credentials["password"], user.hashed_password):
+        return {"error": "Invalid credentials"}
+
+    token = create_access_token({
+        "user_id": user.id,
+        "organization_id": user.organization_id,
+        "role": user.role
+    })
+
+    return {"access_token": token}
