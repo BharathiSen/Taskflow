@@ -1,8 +1,10 @@
 from fastapi import FastAPI, Depends  # Import FastAPI class and Depends function from fastapi module
 from sqlalchemy.orm import Session # Import Session class from sqlalchemy.orm module
 from app.database import engine , get_db # Import the database engine and get_db function
-from app.models import Task, Organization # Import the models
+from app.models import Task, Organization, User # Import the models
 from pydantic import BaseModel # Import BaseModel for request validation
+from app.security import hash_password, verify_password # Import security functions
+
 
 # Pydantic models for request validation
 class OrganizationCreate(BaseModel):
@@ -61,3 +63,19 @@ def create_task(task_data: TaskCreate, db: Session=Depends(get_db)): # FastAPI c
 # 3. add() → stages insert
 # 4. commit() → writes to DB
 # 5. refresh() → loads DB-generated values (id, timestamp)
+
+app.post("/signup")
+def signup_user(user_data: dict, db:Session=Depends(get_db)):
+    hashed pwd=hash_password(user_data["password"])
+
+    user=User(email=user_data["email"], hashed_password=hashed_pwd, role=user_data.get("role","user"), organization_id=user_data["organization_id"])
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "role": user.role,
+        "organization_id": user.organization_id
+    }
