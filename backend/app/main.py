@@ -5,7 +5,7 @@ from app.models import Task, Organization, User # Import the models
 from pydantic import BaseModel # Import BaseModel for request validation
 from app.security import hash_password, verify_password # Import security functions
 from app.auth import create_access_token, get_current_user # Import function to create access tokens
-from backend.app.authorization import require_admin # Import admin authorization function
+from app.authorization import require_admin # Import admin authorization function
 
 
 # Pydantic models for request validation
