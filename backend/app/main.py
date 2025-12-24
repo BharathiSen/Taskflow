@@ -5,6 +5,7 @@ from app.models import Task, Organization, User # Import the models
 from pydantic import BaseModel # Import BaseModel for request validation
 from app.security import hash_password, verify_password # Import security functions
 from app.auth import create_access_token, get_current_user # Import function to create access tokens
+from backend.app.authorization import require_admin # Import admin authorization function
 
 
 # Pydantic models for request validation
@@ -34,7 +35,10 @@ def health(): # Define the health function
     return {"status": "OK"} # Return a JSON response indicating the service is healthy
 
 @app.post("/organizations") # Create organization endpoint
-def create_organization(org_data: OrganizationCreate, db: Session = Depends(get_db)):
+def create_organization(
+    org_data: OrganizationCreate, 
+    db: Session = Depends(get_db)):
+
     org = Organization(**org_data.model_dump())
     db.add(org)
     db.commit()
@@ -42,19 +46,30 @@ def create_organization(org_data: OrganizationCreate, db: Session = Depends(get_
     return org
 
 @app.get("/tasks") # Registers a GET endpoint at /tasks
-def get_tasks( current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_tasks( 
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)):
     return db.query(Task).filter(
         Task.organization_id == current_user["organization_id"]
     ).all()
 
 
 @app.post("/tasks")
-def create_task( task_data: dict, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user["role"] != "ADMIN":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden"
-        )
+def create_task( 
+    task_data: dict, 
+    current_user: dict = Depends(get_current_user), 
+    db: Session = Depends(get_db)):
+    require_admin(current_user)
+
+    task = Task(
+        title=task_data["title"],
+        status=task_data["status"],
+        organization_id=current_user["organization_id"]
+    )
+
+    db.add(task)
+    db.commit()
+    db.refresh(task)
 
     task = Task(
         title=task_data["title"],
@@ -71,7 +86,9 @@ def create_task( task_data: dict, current_user: dict = Depends(get_current_user)
 
 
 app.post("/signup") # User signup endpoint
-def signup_user(user_data: dict, db:Session=Depends(get_db)): # FastAPI calls get_db(), injects a DB session and cleans it up after the request
+def signup_user(
+    user_data: dict, 
+    db:Session=Depends(get_db)): # FastAPI calls get_db(), injects a DB session and cleans it up after the request
     hashed_pwd=hash_password(user_data["password"]) # Hash the user's password
 
     user=User(email=user_data["email"], hashed_password=hashed_pwd, role=user_data.get("role","user"), organization_id=user_data["organization_id"]) # Create a new User instance
@@ -87,7 +104,9 @@ def signup_user(user_data: dict, db:Session=Depends(get_db)): # FastAPI calls ge
     } # Return the newly created user details as JSON (excluding password)
 
 @app.post("/login") # User login endpoint
-def login_user(credentials: dict, db: Session = Depends(get_db)):
+def login_user(
+    credentials: dict, 
+    db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == credentials["email"]).first()
 
     if not user:
@@ -105,7 +124,11 @@ def login_user(credentials: dict, db: Session = Depends(get_db)):
     return {"access_token": token}
 
 @app.put("/tasks/{task_id}") # Update task endpoint
-def update_task( task_id: int, task_data: dict, current_user: dict =Depends(get_current_user), db: Session=Depends(get_db)): # Update a task by ID
+def update_task(
+    task_id: int, 
+    task_data: dict, 
+    current_user: dict =Depends(get_current_user), 
+    db: Session=Depends(get_db)): # Update a task by ID
     task=db.query(Task).filter(Task.id==task_id, Task.organization_id==current_user["organization_id"]).first() # Query the database for the task with the given ID and organization ID
     
     if not task:
@@ -124,3 +147,4 @@ def update_task( task_id: int, task_data: dict, current_user: dict =Depends(get_
 # Enforces ownership and role-based authorization for task updates
 # Prevents cross-tenant access
 # DB and BE both enforce these rules
+
