@@ -104,3 +104,23 @@ def login_user(credentials: dict, db: Session = Depends(get_db)):
 
     return {"access_token": token}
 
+@app.put("/tasks/{task_id}") # Update task endpoint
+def update_task( task_id: int, task_data: dict, current_user: dict =Depends(get_current_user), db: Session=Depends(get_db)): # Update a task by ID
+    task=db.query(Task).filter(Task.id==task_id, Task.organization_id==current_user["organization_id"]).first() # Query the database for the task with the given ID and organization ID
+    
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    
+    if current_user["role"]=="USER":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Users cannot update tasks") # Only admins can update tasks
+    
+    task.title=task_data["title"] # Update the task's title
+    task.status=task_data["status"] # Update the task's status
+
+    db.commit()
+    db.refresh(task)
+    return task
+
+# Enforces ownership and role-based authorization for task updates
+# Prevents cross-tenant access
+# DB and BE both enforce these rules
