@@ -14,6 +14,28 @@ class OrganizationCreate(BaseModel):
 class TaskCreate(BaseModel):
     title: str
     status: str
+
+class TaskUpdate(BaseModel):
+    title: str
+    status: str
+
+class SignupRequest(BaseModel):
+    email: str
+    password: str
+    organization_id: int
+    role: str = "USER"
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    role: str
     organization_id: int
 
 app = FastAPI() # Create an instance of FastAPI
@@ -55,24 +77,14 @@ def get_tasks(
 
 @app.post("/tasks")
 def create_task( 
-    task_data: dict, 
+    task_data: TaskCreate, 
     current_user: dict = Depends(get_current_user), 
     db: Session = Depends(get_db)):
     require_admin(current_user)
 
     task = Task(
-        title=task_data["title"],
-        status=task_data["status"],
-        organization_id=current_user["organization_id"]
-    )
-
-    db.add(task)
-    db.commit()
-    db.refresh(task)
-
-    task = Task(
-        title=task_data["title"],
-        status=task_data["status"],
+        title=task_data.title,
+        status=task_data.status,
         organization_id=current_user["organization_id"]
     )
 
@@ -83,56 +95,54 @@ def create_task(
     return task 
 
 
-@app.post("/signup")
+@app.post("/signup", response_model=UserResponse)
 def signup_user(
-    email: str,
-    password: str,
-    organization_id: int,
-    role: str = "USER",
+    signup_data: SignupRequest,
     db: Session = Depends(get_db)
 ):
     # Check if organization exists
-    org = db.query(Organization).filter(Organization.id == organization_id).first()
+    org = db.query(Organization).filter(Organization.id == signup_data.organization_id).first()
     if not org:
         raise HTTPException(status_code=400, detail="Organization not found")
     
     # Check if user already exists
-    existing_user = db.query(User).filter(User.email == email).first()
+    existing_user = db.query(User).filter(User.email == signup_data.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="User already exists")
 
-    hashed_pwd = hash_password(password)
+    hashed_pwd = hash_password(signup_data.password)
 
     user = User(
-        email=email,
+        email=signup_data.email,
         hashed_password=hashed_pwd,
-        role=role,
-        organization_id=organization_id
+        role=signup_data.role,
+        organization_id=signup_data.organization_id
     )
 
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    return {
-        "id": user.id,
-        "email": user.email,
-        "role": user.role,
-        "organization_id": user.organization_id
-    }
+    return user
 
 
-@app.post("/login") # User login endpoint
+@app.post("/login", response_model=TokenResponse) # User login endpoint
 def login_user(
-    credentials: dict, 
+    credentials: LoginRequest, 
     db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == credentials["email"]).first()
+    user = db.query(User).filter(User.email == credentials.email).first()
 
     if not user:
-        return {"error": "Invalid credentials"}
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
 
-    if not verify_password(credentials["password"], user.hashed_password):
-        return {"error": "Invalid credentials"}
+    if not verify_password(credentials.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
 
     token = create_access_token({
         "user_id": user.id,
@@ -145,19 +155,23 @@ def login_user(
 @app.put("/tasks/{task_id}") # Update task endpoint
 def update_task(
     task_id: int, 
-    task_data: dict, 
-    current_user: dict =Depends(get_current_user), 
-    db: Session=Depends(get_db)): # Update a task by ID
-    task=db.query(Task).filter(Task.id==task_id, Task.organization_id==current_user["organization_id"]).first() # Query the database for the task with the given ID and organization ID
+    task_data: TaskUpdate, 
+    current_user: dict = Depends(get_current_user), 
+    db: Session = Depends(get_db)): # Update a task by ID
+    # Only admins can update tasks
+    require_admin(current_user)
+    
+    # Query the database for the task with the given ID and organization ID
+    task = db.query(Task).filter(
+        Task.id == task_id, 
+        Task.organization_id == current_user["organization_id"]
+    ).first()
     
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     
-    if current_user["role"]=="USER":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Users cannot update tasks") # Only admins can update tasks
-    
-    task.title=task_data["title"] # Update the task's title
-    task.status=task_data["status"] # Update the task's status
+    task.title = task_data.title # Update the task's title
+    task.status = task_data.status # Update the task's status
 
     db.commit()
     db.refresh(task)
