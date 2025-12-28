@@ -176,6 +176,27 @@ def update_task(
 
     return task
 
+@app.delete("/tasks/{task_id}") # Delete task endpoint
+def delete_task(
+    task_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    require_admin(current_user)
+
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.organization_id == current_user["organization_id"]
+    ).first()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    db.delete(task)
+    db.commit()
+
+    return {"message": "Task deleted successfully"}
+
 # Enforces ownership and role-based authorization for task updates
 # Prevents cross-tenant access
 # DB and BE both enforce these rules
