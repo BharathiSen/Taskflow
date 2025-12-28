@@ -201,3 +201,26 @@ def delete_task(
 # Prevents cross-tenant access
 # DB and BE both enforce these rules
 
+@app.get("/tasks")
+def get_tasks(
+    status: str | None = None,
+    page: int = 1,
+    limit: int = 10,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if page < 1: 
+        raise HTTPException(status_code=400, detail="Page must be >= 1")
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
+
+    query = db.query(Task).filter(
+        Task.organization_id == current_user["organization_id"]
+    )
+
+    if status:
+        query = query.filter(Task.status == status)
+
+    offset = (page - 1) * limit
+
+    return query.offset(offset).limit(limit).all()
