@@ -7,19 +7,12 @@ from app.security import hash_password, verify_password # Import security functi
 from app.auth import create_access_token, get_current_user # Import function to create access tokens
 from app.authorization import require_admin # Import admin authorization function
 from app.rules import validate_status_transition # Import status transition validation function
+from app.schemas import TaskCreate, TaskUpdate # Import task schemas
 
 
 # Pydantic models for request validation
 class OrganizationCreate(BaseModel):
     name: str
-
-class TaskCreate(BaseModel):
-    title: str
-    status: str
-
-class TaskUpdate(BaseModel):
-    title: str
-    status: str
 
 class SignupRequest(BaseModel):
     email: str
@@ -78,15 +71,16 @@ def get_tasks(
 
 
 @app.post("/tasks")
-def create_task( 
-    task_data: TaskCreate, 
-    current_user: dict = Depends(get_current_user), 
-    db: Session = Depends(get_db)):
+def create_task(
+    data: TaskCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     require_admin(current_user)
 
     task = Task(
-        title=task_data.title,
-        status=task_data.status,
+        title=data.title,
+        status=data.status,
         organization_id=current_user["organization_id"]
     )
 
