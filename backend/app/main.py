@@ -90,6 +90,8 @@ def create_task(
     db.commit()
     db.refresh(task)
 
+    logger.info("Task created", extra={"task_id": task.id})
+
     return task 
 
 
@@ -236,7 +238,3 @@ def business_rule_exception_handler(
         status_code=400,
         content={"detail": exc.message}
     )
-
-logger.info("Task created", extra={"task_id": task.id})
-logger.warning("Unauthorized access attempt")
-logger.error("Database failure", exc_info=True)
