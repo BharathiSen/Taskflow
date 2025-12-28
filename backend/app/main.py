@@ -6,6 +6,8 @@ from pydantic import BaseModel # Import BaseModel for request validation
 from app.security import hash_password, verify_password # Import security functions
 from app.auth import create_access_token, get_current_user # Import function to create access tokens
 from app.authorization import require_admin # Import admin authorization function
+from app.rules import validate_status_transition # Import status transition validation function
+
 
 # Pydantic models for request validation
 class OrganizationCreate(BaseModel):
@@ -154,27 +156,30 @@ def login_user(
 
 @app.put("/tasks/{task_id}") # Update task endpoint
 def update_task(
-    task_id: int, 
-    task_data: TaskUpdate, 
-    current_user: dict = Depends(get_current_user), 
-    db: Session = Depends(get_db)): # Update a task by ID
-    # Only admins can update tasks
+    task_id: int,
+    new_status: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     require_admin(current_user)
-    
-    # Query the database for the task with the given ID and organization ID
+
     task = db.query(Task).filter(
-        Task.id == task_id, 
+        Task.id == task_id,
         Task.organization_id == current_user["organization_id"]
     ).first()
-    
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    
-    task.title = task_data.title # Update the task's title
-    task.status = task_data.status # Update the task's status
 
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    try:
+        validate_status_transition(task.status, new_status)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    task.status = new_status
     db.commit()
     db.refresh(task)
+
     return task
 
 # Enforces ownership and role-based authorization for task updates
