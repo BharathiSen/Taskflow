@@ -10,7 +10,7 @@ from app.rules import validate_status_transition # Import status transition vali
 from app.schemas import TaskCreate, TaskUpdate # Import task schemas
 from app.exceptions import BusinessRuleViolation # Import custom exception
 from fastapi.responses import JSONResponse # Import JSONResponse for custom error handling
-
+from app.logger import logger # Import logger
 
 # Pydantic models for request validation
 class OrganizationCreate(BaseModel):
@@ -236,3 +236,7 @@ def business_rule_exception_handler(
         status_code=400,
         content={"detail": exc.message}
     )
+
+logger.info("Task created", extra={"task_id": task.id})
+logger.warning("Unauthorized access attempt")
+logger.error("Database failure", exc_info=True)
