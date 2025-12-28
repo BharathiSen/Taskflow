@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status  # Import FastAPI class and Depends function from fastapi module
+from fastapi import FastAPI, Depends, HTTPException, status, Request  # Import FastAPI class and Depends function from fastapi module
 from sqlalchemy.orm import Session # Import Session class from sqlalchemy.orm module
 from app.database import engine , get_db # Import the database engine and get_db function
 from app.models import Task, Organization, User # Import the models
@@ -8,6 +8,8 @@ from app.auth import create_access_token, get_current_user # Import function to 
 from app.authorization import require_admin # Import admin authorization function
 from app.rules import validate_status_transition # Import status transition validation function
 from app.schemas import TaskCreate, TaskUpdate # Import task schemas
+from app.exceptions import BusinessRuleViolation # Import custom exception
+from fastapi.responses import JSONResponse # Import JSONResponse for custom error handling
 
 
 # Pydantic models for request validation
@@ -224,3 +226,13 @@ def get_tasks(
     offset = (page - 1) * limit
 
     return query.offset(offset).limit(limit).all()
+
+@app.exception_handler(BusinessRuleViolation)
+def business_rule_exception_handler(
+    request: Request,
+    exc: BusinessRuleViolation
+):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": exc.message}
+    )
