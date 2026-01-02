@@ -11,6 +11,8 @@ from app.schemas import TaskCreate, TaskUpdate # Import task schemas
 from app.exceptions import BusinessRuleViolation # Import custom exception
 from fastapi.responses import JSONResponse # Import JSONResponse for custom error handling
 from app.logger import logger # Import logger
+from app.cache import CACHE, CACHE_TTL, invalidate_task_cache # Import cache utilities
+from time import time # Import time for cache timestamp
 
 # Pydantic models for request validation
 class OrganizationCreate(BaseModel):
@@ -80,6 +82,9 @@ def create_task(
     db.add(task)
     db.commit()
     db.refresh(task)
+
+    # Invalidate cache for this organization
+    invalidate_task_cache(current_user["organization_id"])
 
     logger.info("Task created", extra={"task_id": task.id})
 
@@ -169,6 +174,9 @@ def update_task(
     db.commit()
     db.refresh(task)
 
+    # Invalidate cache for this organization
+    invalidate_task_cache(current_user["organization_id"])
+
     return task
 
 @app.delete("/tasks/{task_id}") # Delete task endpoint
@@ -190,6 +198,9 @@ def delete_task(
     db.delete(task)
     db.commit()
 
+    # Invalidate cache for this organization
+    invalidate_task_cache(current_user["organization_id"])
+
     return {"message": "Task deleted successfully"}
 
 # Enforces ownership and role-based authorization for task updates
@@ -210,18 +221,35 @@ def get_tasks(
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
 
-    # 2️⃣ Tenant isolation (NON-NEGOTIABLE)
+    # 2️⃣ Check cache
+    org_id = current_user["organization_id"]
+    cache_key = f"tasks:{org_id}:{status}:{page}:{limit}"
+    now = time()
+    
+    if cache_key in CACHE:
+        data, timestamp = CACHE[cache_key]
+        if now - timestamp < CACHE_TTL:
+            logger.info(f"Cache hit for key: {cache_key}")
+            return data
+
+    # 3️⃣ Tenant isolation (NON-NEGOTIABLE)
     query = db.query(Task).filter(
-        Task.organization_id == current_user["organization_id"]
+        Task.organization_id == org_id
     )
 
-    # 3️⃣ Optional filtering
+    # 4️⃣ Optional filtering
     if status:
         query = query.filter(Task.status == status)
 
-    # 4️⃣ DB-level pagination
+    # 5️⃣ DB-level pagination
     offset = (page - 1) * limit
-    return query.offset(offset).limit(limit).all()
+    tasks = query.offset(offset).limit(limit).all()
+    
+    # 6️⃣ Store in cache
+    CACHE[cache_key] = (tasks, now)
+    logger.info(f"Cache miss, stored key: {cache_key}")
+    
+    return tasks
 
 
 @app.exception_handler(BusinessRuleViolation)
