@@ -2,8 +2,7 @@ from sqlalchemy import text # For executing raw SQL queries
 from sqlalchemy import create_engine # Creates connection to the database
 from sqlalchemy.orm import sessionmaker # Manages database sessions
 from app.models import Base  # Importing the Base class from models
-
-DATABASE_URL = "postgresql://postgres:bharathi@localhost:5432/taskflow_db" # Database connection URL
+from app.config import DATABASE_URL # Import DATABASE_URL from config
 
 engine = create_engine(DATABASE_URL) # Create the database engine
 SessionLocal = sessionmaker(bind=engine) # One Database session per request 

@@ -2,8 +2,8 @@ from datetime import datetime, timedelta # Import datetime and timedelta for han
 from jose import jwt # Import jwt module from jose for handling JSON Web Tokens
 from fastapi import Depends, HTTPException, status # Import Depends function from FastAPI for dependency injection
 from fastapi.security import OAuth2PasswordBearer # Import OAuth2PasswordBearer for handling OAuth2 authentication
+from app.config import SECRET_KEY # Import SECRET_KEY from config
 
-SECRET_KEY= "cHANGE_LATER" # Secret key for encoding and decoding JWTs
 ALGORITHM= "HS256" # Algorithm used for JWT encoding and decoding
 ACCESS_TOKEN_EXPIRE_MINUTES=30 # Token expiration time in minutes
 
