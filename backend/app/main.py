@@ -63,15 +63,6 @@ def create_organization(
     db.refresh(org)
     return org
 
-@app.get("/tasks") # Registers a GET endpoint at /tasks
-def get_tasks( 
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)):
-    return db.query(Task).filter(
-        Task.organization_id == current_user["organization_id"]
-    ).all()
-
-
 @app.post("/tasks")
 def create_task(
     data: TaskCreate,
@@ -213,21 +204,25 @@ def get_tasks(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if page < 1: 
+    # 1️⃣ Input validation
+    if page < 1:
         raise HTTPException(status_code=400, detail="Page must be >= 1")
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
 
+    # 2️⃣ Tenant isolation (NON-NEGOTIABLE)
     query = db.query(Task).filter(
         Task.organization_id == current_user["organization_id"]
     )
 
+    # 3️⃣ Optional filtering
     if status:
         query = query.filter(Task.status == status)
 
+    # 4️⃣ DB-level pagination
     offset = (page - 1) * limit
-
     return query.offset(offset).limit(limit).all()
+
 
 @app.exception_handler(BusinessRuleViolation)
 def business_rule_exception_handler(
