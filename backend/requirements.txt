@@ -2,7 +2,6 @@ fastapi #web framework for building APIs
 uvicorn #ASGI server for running FastAPI applications
 sqlalchemy #ORM for database interactions
 psycopg2-binary #PostgreSQL database adapter
-passlib #password hashing library
-bcrypt==4.0.1 #bcrypt for password hashing (compatible with passlib)
+passlib[bcrypt] #password hashing library with bcrypt support
 python-jose[cryptography] #JSON Web Token implementation
 python-dotenv #load environment variables from .env file

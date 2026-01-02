@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta # Import datetime and timedelta for handling time-related tasks
-from jose import jwt # Import jwt module from jose for handling JSON Web Tokens
+from jose import JWTError, jwt # Import JWTError and jwt module from jose for handling JSON Web Tokens
 from fastapi import Depends, HTTPException, status # Import Depends function from FastAPI for dependency injection
 from fastapi.security import OAuth2PasswordBearer # Import OAuth2PasswordBearer for handling OAuth2 authentication
 from app.config import SECRET_KEY # Import SECRET_KEY from config
@@ -18,7 +18,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)): # Dependency to get t
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) # Decode the JWT to get the payload
         return payload
-    except:
+    except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
