@@ -233,3 +233,14 @@ def business_rule_exception_handler(
         status_code=400,
         content={"detail": exc.message}
     )
+
+@app.exception_handler(Exception)
+def global_exception_handler(request: Request, exc: Exception):
+    logger.error(
+        f"Unhandled error: {exc}",
+        exc_info=True
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error"}
+    )
